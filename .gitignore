@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+
+# ChromaDB
+backend/data/chroma_db/
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.env
+
+# Test files
+backend/test_graph.py
+backend/data/create_policy.py
