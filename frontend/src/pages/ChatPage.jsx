@@ -2,217 +2,251 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { generateSessionId, sendMessage } from "../services/api";
 
-const SESSION_KEY = "hr_session_id";
+const SESSION_KEY  = "hr_session_id";
 const MESSAGES_KEY = "hr_messages";
 
 const welcome = {
-  id: 1,
-  role: "assistant",
-  content: "Hello! I am the TechCorp HR Policy Assistant. Ask me anything about leave policies, work from home, appraisals, or any HR policy.",
-  sources: [],
-  found: true,
+  id: 1, role: "assistant",
+  content: "Hello! I'm your TechCorp HR Policy Assistant.\n\nAsk me anything about leave policies, work from home rules, appraisals, notice periods, or any HR policy.",
+  sources: [], found: true,
 };
 
-function ChatPage() {
+const SUGGESTIONS = [
+  "How many annual leave days do I get?",
+  "What is the WFH policy?",
+  "What is the notice period?",
+  "Salary increment for rating 5?",
+];
+
+export default function ChatPage() {
   const [sessionId] = useState(() => {
-    const existing = localStorage.getItem(SESSION_KEY);
-    if (existing) return existing;
-    const newId = generateSessionId();
-    localStorage.setItem(SESSION_KEY, newId);
-    return newId;
+    const e = localStorage.getItem(SESSION_KEY);
+    if (e) return e;
+    const n = generateSessionId();
+    localStorage.setItem(SESSION_KEY, n);
+    return n;
   });
-
   const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem(MESSAGES_KEY);
-      return saved ? JSON.parse(saved) : [welcome];
-    } catch {
-      return [welcome];
-    }
+    try { const s = localStorage.getItem(MESSAGES_KEY); return s ? JSON.parse(s) : [welcome]; }
+    catch { return [welcome]; }
   });
-
-  const [input, setInput]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const bottomRef               = useRef(null);
+  const [input, setInput]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef             = useRef(null);
 
   useEffect(() => {
     localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function handleSend() {
-    if (!input.trim() || loading) return;
-    const text = input.trim();
+  async function handleSend(text) {
+    const msg = text || input.trim();
+    if (!msg || loading) return;
     setInput("");
-
-    const userMsg = { id: Date.now(), role: "user", content: text, sources: [], found: true };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages(p => [...p, { id: Date.now(), role: "user", content: msg, sources: [], found: true }]);
     setLoading(true);
-
     try {
-      const result = await sendMessage(sessionId, text);
-      const botMsg = {
-        id:      Date.now() + 1,
-        role:    "assistant",
-        content: result.response,
-        sources: result.sources || [],
-        found:   result.found,
-      };
-      setMessages((prev) => [...prev, botMsg]);
+      const r = await sendMessage(sessionId, msg);
+      setMessages(p => [...p, { id: Date.now()+1, role: "assistant",
+        content: r.response, sources: r.sources || [], found: r.found }]);
     } catch {
-      setMessages((prev) => [...prev, {
-        id: Date.now() + 1, role: "assistant",
-        content: "Sorry, something went wrong. Please try again.",
-        sources: [], found: true,
-      }]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleKeyDown(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+      setMessages(p => [...p, { id: Date.now()+1, role: "assistant",
+        content: "Connection error. Please check if the backend is running.", sources: [], found: true }]);
+    } finally { setLoading(false); }
   }
 
   function handleNewChat() {
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(MESSAGES_KEY);
-    const newId = generateSessionId();
-    localStorage.setItem(SESSION_KEY, newId);
+    const n = generateSessionId();
+    localStorage.setItem(SESSION_KEY, n);
     setMessages([welcome]);
     window.location.reload();
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh",
-      backgroundColor: "#f8fafc", fontFamily: "'Segoe UI', sans-serif" }}>
+  const isOnlyWelcome = messages.length === 1;
 
-      {/* Header */}
-      <div style={{ backgroundColor: "#1e293b", padding: "14px 20px",
-        display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "50%",
-            backgroundColor: "#2563eb", display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: "18px" }}>📋</div>
+  return (
+    <div style={{ display:"flex", flexDirection:"column", height:"100vh", background:"var(--bg-base)" }}>
+
+      {/* ── Header ── */}
+      <header style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+        padding:"0 24px", height:"60px", borderBottom:"1px solid var(--border)",
+        background:"var(--bg-surface)", flexShrink:0 }}>
+
+        <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+          <div style={{ width:"34px", height:"34px", borderRadius:"10px",
+            background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:"16px", boxShadow:"0 0 12px rgba(59,130,246,0.4)" }}>📋</div>
           <div>
-            <div style={{ color: "#fff", fontWeight: "700", fontSize: "16px" }}>
-              TechCorp HR Assistant
+            <div style={{ fontFamily:"var(--font-display)", fontWeight:700,
+              fontSize:"15px", color:"var(--text-primary)", letterSpacing:"0.01em" }}>
+              HR Policy Assistant
             </div>
-            <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-              Powered by AI · Answers from official HR policy
+            <div style={{ fontSize:"11px", color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>
+              TechCorp · Powered by RAG
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={handleNewChat} style={{ color: "#94a3b8",
-            backgroundColor: "transparent", border: "1px solid #334155",
-            borderRadius: "6px", padding: "6px 12px", fontSize: "13px", cursor: "pointer" }}>
+
+        <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
+          <div style={{ width:"7px", height:"7px", borderRadius:"50%",
+            background:"var(--success)", boxShadow:"0 0 6px var(--success)",
+            animation:"pulse-glow 2s infinite" }} />
+          <span style={{ fontSize:"12px", color:"var(--text-secondary)", marginRight:"16px" }}>
+            Online
+          </span>
+          <button onClick={handleNewChat} style={{ background:"transparent",
+            border:"1px solid var(--border-bright)", borderRadius:"8px",
+            color:"var(--text-secondary)", padding:"6px 14px", fontSize:"12px",
+            cursor:"pointer", fontFamily:"var(--font-body)",
+            transition:"all 0.2s" }}
+            onMouseEnter={e => e.target.style.borderColor="var(--accent)"}
+            onMouseLeave={e => e.target.style.borderColor="var(--border-bright)"}>
             New Chat
           </button>
-          <Link to="/history" style={{ color: "#94a3b8", textDecoration: "none",
-            fontSize: "13px", padding: "6px 12px", border: "1px solid #334155",
-            borderRadius: "6px" }}>
+          <Link to="/history" style={{ background:"var(--accent)", border:"none",
+            borderRadius:"8px", color:"#fff", padding:"6px 14px", fontSize:"12px",
+            cursor:"pointer", textDecoration:"none", fontFamily:"var(--font-body)",
+            fontWeight:500 }}>
             History →
           </Link>
         </div>
+      </header>
+
+      {/* ── Messages ── */}
+      <div style={{ flex:1, overflowY:"auto", padding:"24px",
+        display:"flex", flexDirection:"column", gap:"4px" }}>
+
+        {/* Suggestions — shown only when just welcome message */}
+        {isOnlyWelcome && (
+          <div style={{ display:"flex", flexWrap:"wrap", gap:"8px",
+            justifyContent:"center", marginBottom:"24px", marginTop:"8px",
+            animation:"fadeUp 0.5s ease both" }}>
+            {SUGGESTIONS.map((s, i) => (
+              <button key={i} onClick={() => handleSend(s)}
+                style={{ background:"var(--bg-elevated)", border:"1px solid var(--border)",
+                  borderRadius:"20px", color:"var(--text-secondary)", padding:"7px 16px",
+                  fontSize:"12px", cursor:"pointer", fontFamily:"var(--font-body)",
+                  transition:"all 0.2s", animationDelay:`${i*0.08}s` }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor="var(--accent)";
+                  e.currentTarget.style.color="var(--accent)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor="var(--border)";
+                  e.currentTarget.style.color="var(--text-secondary)"; }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {messages.map((msg, idx) => (
+          <div key={msg.id} style={{ display:"flex", flexDirection:"column",
+            alignItems: msg.role === "user" ? "flex-end" : "flex-start",
+            marginBottom:"12px",
+            animation:"fadeUp 0.3s ease both",
+            animationDelay:`${idx === messages.length-1 ? 0 : 0}s` }}>
+
+            {/* Role label */}
+            <div style={{ fontSize:"10px", fontFamily:"var(--font-mono)",
+              color:"var(--text-muted)", marginBottom:"5px", letterSpacing:"0.08em",
+              textTransform:"uppercase" }}>
+              {msg.role === "user" ? "You" : "HR Assistant"}
+            </div>
+
+            {/* Bubble */}
+            <div style={{
+              maxWidth:"72%", padding:"12px 16px", fontSize:"14px", lineHeight:"1.7",
+              borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+              background: msg.role === "user"
+                ? "linear-gradient(135deg,#1d4ed8,#3b82f6)"
+                : "var(--bg-elevated)",
+              color: "var(--text-primary)",
+              border: msg.role === "user" ? "none" : "1px solid var(--border)",
+              boxShadow: msg.role === "user"
+                ? "0 4px 20px rgba(59,130,246,0.25)"
+                : "0 2px 8px rgba(0,0,0,0.3)",
+              whiteSpace:"pre-wrap", wordBreak:"break-word"
+            }}>
+              {msg.content}
+            </div>
+
+            {/* Sources */}
+            {msg.sources && msg.sources.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"6px", marginTop:"6px", maxWidth:"72%" }}>
+                {msg.sources.map((s, i) => (
+                  <div key={i} style={{ display:"inline-flex", alignItems:"center", gap:"5px",
+                    background:"rgba(59,130,246,0.08)", border:"1px solid rgba(59,130,246,0.25)",
+                    borderRadius:"6px", padding:"3px 10px", fontSize:"11px",
+                    color:"#60a5fa", fontFamily:"var(--font-mono)" }}>
+                    📄 {s.file} · pg {s.page}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Not found */}
+            {msg.role === "assistant" && msg.found === false && (
+              <div style={{ marginTop:"6px", maxWidth:"72%", padding:"5px 12px",
+                background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.25)",
+                borderRadius:"6px", fontSize:"11px", color:"var(--warning)",
+                fontFamily:"var(--font-mono)" }}>
+                ⚠ Not found in policy documents
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Typing indicator */}
+        {loading && (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", marginBottom:"12px" }}>
+            <div style={{ fontSize:"10px", fontFamily:"var(--font-mono)", color:"var(--text-muted)",
+              marginBottom:"5px", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+              HR Assistant
+            </div>
+            <div style={{ display:"flex", gap:"5px", padding:"12px 16px",
+              background:"var(--bg-elevated)", borderRadius:"16px 16px 16px 4px",
+              border:"1px solid var(--border)" }}>
+              {[0,1,2].map(i => (
+                <div key={i} style={{ width:"7px", height:"7px", borderRadius:"50%",
+                  background:"var(--accent)", animation:"bounce 1.2s infinite",
+                  animationDelay:`${i*0.2}s`, opacity:0.7 }} />
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
       </div>
 
-      {/* Chat Area */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "800px",
-        width: "100%", margin: "0 auto", backgroundColor: "#fff",
-        boxShadow: "0 0 20px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-
-        {/* Messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px",
-          display: "flex", flexDirection: "column" }}>
-          {messages.map((msg) => (
-            <div key={msg.id} style={{ marginBottom: "16px",
-              display: "flex", flexDirection: "column",
-              alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
-
-              {/* Bubble */}
-              <div style={{
-                maxWidth: "72%", padding: "10px 14px", fontSize: "14px", lineHeight: "1.6",
-                borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                backgroundColor: msg.role === "user" ? "#2563eb" : "#f1f5f9",
-                color: msg.role === "user" ? "#fff" : "#1e293b",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                whiteSpace: "pre-wrap"
-              }}>
-                {msg.content}
-              </div>
-
-              {/* Source citations */}
-              {msg.sources && msg.sources.length > 0 && (
-                <div style={{ marginTop: "6px", maxWidth: "72%" }}>
-                  {msg.sources.map((s, i) => (
-                    <div key={i} style={{ display: "inline-flex", alignItems: "center",
-                      gap: "5px", backgroundColor: "#eff6ff", border: "1px solid #bfdbfe",
-                      borderRadius: "6px", padding: "3px 10px", fontSize: "12px",
-                      color: "#1d4ed8", marginRight: "6px", marginTop: "4px" }}>
-                      📄 {s.file} — Page {s.page}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Not found warning */}
-              {msg.role === "assistant" && !msg.found && (
-                <div style={{ marginTop: "6px", maxWidth: "72%", padding: "6px 12px",
-                  backgroundColor: "#fff7ed", border: "1px solid #fed7aa",
-                  borderRadius: "6px", fontSize: "12px", color: "#c2410c" }}>
-                  ⚠️ Answer not found in HR policy documents
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* Typing indicator */}
-          {loading && (
-            <div style={{ display: "flex", gap: "4px", padding: "10px 14px",
-              backgroundColor: "#f1f5f9", borderRadius: "18px 18px 18px 4px",
-              width: "fit-content", marginBottom: "12px" }}>
-              {[0,1,2].map((i) => (
-                <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%",
-                  backgroundColor: "#94a3b8", animation: "bounce 1.2s infinite",
-                  animationDelay: `${i * 0.2}s` }} />
-              ))}
-              <style>{`@keyframes bounce {
-                0%,60%,100%{transform:translateY(0)}
-                30%{transform:translateY(-6px)}
-              }`}</style>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input */}
-        <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 16px",
-          display: "flex", gap: "8px", backgroundColor: "#fff" }}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
+      {/* ── Input ── */}
+      <div style={{ padding:"16px 24px 20px", borderTop:"1px solid var(--border)",
+        background:"var(--bg-surface)", flexShrink:0 }}>
+        <div style={{ display:"flex", gap:"10px", maxWidth:"800px", margin:"0 auto",
+          background:"var(--bg-elevated)", border:"1px solid var(--border-bright)",
+          borderRadius:"14px", padding:"6px 6px 6px 16px",
+          transition:"border-color 0.2s", boxShadow:"0 4px 20px rgba(0,0,0,0.3)" }}>
+          <input value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key==="Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
             disabled={loading}
             placeholder="Ask about leave, WFH, appraisals, notice period..."
-            style={{ flex: 1, padding: "10px 14px", borderRadius: "24px",
-              border: "1px solid #e2e8f0", fontSize: "14px", outline: "none",
-              backgroundColor: loading ? "#f8fafc" : "#fff", color: "#1e293b" }}
-          />
-          <button onClick={handleSend} disabled={loading || !input.trim()}
-            style={{ padding: "10px 20px", borderRadius: "24px", border: "none",
-              backgroundColor: loading || !input.trim() ? "#94a3b8" : "#2563eb",
-              color: "#fff", fontSize: "14px", fontWeight: "600",
-              cursor: loading || !input.trim() ? "not-allowed" : "pointer" }}>
+            style={{ flex:1, background:"transparent", border:"none", outline:"none",
+              color:"var(--text-primary)", fontSize:"14px", fontFamily:"var(--font-body)",
+              padding:"6px 0" }} />
+          <button onClick={() => handleSend()} disabled={loading || !input.trim()}
+            style={{ background: loading || !input.trim()
+              ? "var(--bg-hover)" : "linear-gradient(135deg,#1d4ed8,#3b82f6)",
+              border:"none", borderRadius:"10px", color:"#fff", padding:"10px 20px",
+              fontSize:"13px", fontWeight:600, cursor: loading || !input.trim() ? "not-allowed" : "pointer",
+              fontFamily:"var(--font-body)", transition:"all 0.2s",
+              boxShadow: loading || !input.trim() ? "none" : "0 0 12px rgba(59,130,246,0.4)" }}>
             Send
           </button>
+        </div>
+        <div style={{ textAlign:"center", marginTop:"8px", fontSize:"11px",
+          color:"var(--text-muted)", fontFamily:"var(--font-mono)" }}>
+          Answers sourced from official TechCorp HR Policy 2025
         </div>
       </div>
     </div>
   );
 }
-
-export default ChatPage;
