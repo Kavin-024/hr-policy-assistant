@@ -20,12 +20,12 @@ def router_node(state: AgentState) -> AgentState:
     goodbyes  = ["bye", "goodbye", "see you", "thanks", "thank you",
                  "that's all", "exit", "quit"]
 
-    if any(g in question for g in greetings):
+    if any(g in question.split() for g in greetings):
         return {**state, "route": "direct",
                 "final_response": "Hello! I am the TechCorp HR Policy Assistant. Ask me anything about leave policies, work from home, appraisals, code of conduct, or any other HR policy.",
                 "sources": []}
 
-    if any(g in question for g in goodbyes):
+    if any(g in question.split() for g in goodbyes):
         return {**state, "route": "direct",
                 "final_response": "Thank you for using the HR Policy Assistant. Have a great day!",
                 "sources": []}
